@@ -36,7 +36,7 @@ class MaskBranch(nn.Module):
     def __init__(self, num_classes, dim_in=256, dim_hidden=256, with_norm='none'):
         super(MaskBranch, self).__init__()
         self.roi_pooling = FPNRoIAlign(config.network.mask_size // 2, config.network.mask_size // 2,
-                                        [1.0 / 4, 1.0 / 8, 1.0 / 16, 1.0 / 32])
+                                        [1.0 / 4, 1.0 / 8, 1.0 / 16, 1.0 / 32, 1.0/4])
         conv = nn.Conv2d
 
         assert with_norm in ['batch_norm', 'group_norm', 'none']
