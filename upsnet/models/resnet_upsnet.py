@@ -88,6 +88,15 @@ class resnet_upsnet(resnet_rcnn):
     def forward(self, data, label=None):
 
         res2, res3, res4, res5 = self.resnet_backbone(data['data'])
+
+        #提取边界
+        channels = data['data'].size()[1]
+        edge_filter = [[-0.0751, -0.1238, -0.0751],[-0.1238, 0.7956, -0.1238][-0.0751,-0.1238,-0.0751]]
+        edge_filter = torch.FloatTensor(edge_filter).expand(channels,channels,3,3)
+        edge = F.conv2d(data['data'],edge_filter,1,1)
+        self.maxpool = nn.MaxPool2d(kernel_size=5, stride=4, padding=2)
+        
+
         fpn_p2, fpn_p3, fpn_p4, fpn_p5, fpn_p6 = self.fpn(res2, res3, res4, res5)
 
         rpn_cls_score, rpn_cls_prob, rpn_bbox_pred = [], [], []
@@ -118,9 +127,9 @@ class resnet_upsnet(resnet_rcnn):
         if label is not None and config.train.fcn_with_roi_loss:
             fcn_rois, _ = self.get_gt_rois(label['roidb'], data['im_info'])
             fcn_rois = fcn_rois.to(rois.device)
-            fcn_output = self.fcn_head(*[fpn_p2, fpn_p3, fpn_p4, fpn_p5, fcn_rois])
+            fcn_output = self.fcn_head(*[fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge, fcn_rois])
         else:
-            fcn_output = self.fcn_head(*[fpn_p2, fpn_p3, fpn_p4, fpn_p5])
+            fcn_output = self.fcn_head(*[fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge])
 
         if label is not None:
 
@@ -134,9 +143,9 @@ class resnet_upsnet(resnet_rcnn):
                 fcn_roi_loss = fcn_roi_loss.mean()
 
             # Instance head loss
-            rcnn_output = self.rcnn([fpn_p2, fpn_p3, fpn_p4, fpn_p5], rois)
+            rcnn_output = self.rcnn([fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge], rois)
             cls_score, bbox_pred = rcnn_output['cls_score'], rcnn_output['bbox_pred']
-            mask_score = self.mask_branch([fpn_p2, fpn_p3, fpn_p4, fpn_p5], mask_rois)
+            mask_score = self.mask_branch([fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge], mask_rois)
             cls_loss, bbox_loss, mask_loss, rcnn_acc = \
                 self.mask_rcnn_loss(cls_score, bbox_pred, mask_score,
                                     cls_label, bbox_target, bbox_inside_weight, bbox_outside_weight, mask_target)
@@ -152,7 +161,7 @@ class resnet_upsnet(resnet_rcnn):
             gt_rois, cls_idx = gt_rois.to(rois.device), cls_idx.to(rois.device)
 
             # Calc mask logits with gt rois
-            mask_score = self.mask_branch([fpn_p2, fpn_p3, fpn_p4, fpn_p5], gt_rois)
+            mask_score = self.mask_branch([fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge], gt_rois)
             mask_score = mask_score.gather(1, cls_idx.view(-1, 1, 1, 1).expand(-1, -1, config.network.mask_size, config.network.mask_size))
 
             # Calc panoptic logits

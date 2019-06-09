@@ -80,12 +80,16 @@ class FCNHead(nn.Module):
         self.fcn_subnet = FCNSubNet(in_channels, 128, num_layers, with_norm=with_norm)
         self.upsample_rate = upsample_rate
 
-        self.score = nn.Conv2d(512, num_classes, 1)
+        #self.score = nn.Conv2d(512, num_classes, 1)
+        #修改参数
+        self.score = nn.Conv2d(513, num_classes, 1)
+
+        
         if with_roi_loss:
             self.roipool = RoIAlign(config.network.mask_size, config.network.mask_size, 1/4.0)
         self.initialize()
 
-    def forward(self, fpn_p2, fpn_p3, fpn_p4, fpn_p5, roi=None):
+    def forward(self, fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge, roi=None):
         fpn_p2 = self.fcn_subnet(fpn_p2)
         fpn_p3 = self.fcn_subnet(fpn_p3)
         fpn_p4 = self.fcn_subnet(fpn_p4)
@@ -94,7 +98,12 @@ class FCNHead(nn.Module):
         fpn_p3 = F.interpolate(fpn_p3, None, 2, mode='bilinear', align_corners=False)
         fpn_p4 = F.interpolate(fpn_p4, None, 4, mode='bilinear', align_corners=False)
         fpn_p5 = F.interpolate(fpn_p5, None, 8, mode='bilinear', align_corners=False)
-        feat = torch.cat([fpn_p2, fpn_p3, fpn_p4, fpn_p5], dim=1)
+
+        #feat = torch.cat([fpn_p2, fpn_p3, fpn_p4, fpn_p5], dim=1)
+        #加入edge层
+        feat = torch.cat([fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge], dim=1)
+
+        
         score = self.score(feat)
         ret = {'fcn_score': score, 'fcn_feat': feat}
         if self.upsample_rate != 1:

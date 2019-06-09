@@ -92,7 +92,12 @@ class RCNN(nn.Module):
         super(RCNN, self).__init__()
         self.with_fpn_pooling = with_fpn_pooling
         if self.with_fpn_pooling:
-            self.roi_pooling = FPNRoIAlign(pool_size, pool_size, [1.0 / 4, 1.0 / 8, 1.0 / 16, 1.0 / 32])
+            
+            #self.roi_pooling = FPNRoIAlign(pool_size, pool_size, [1.0 / 4, 1.0 / 8, 1.0 / 16, 1.0 / 32])
+            #加入edge feature 层
+            self.roi_pooling = FPNRoIAlign(pool_size, pool_size, [1.0 / 4, 1.0 / 8, 1.0 / 16, 1.0 / 32, 1.0/4])
+
+            
         else:
             self.roi_pooling = RoIAlign(pool_size, pool_size, [1.0 / 16])
         
