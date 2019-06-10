@@ -93,7 +93,7 @@ class resnet_upsnet(resnet_rcnn):
         channels = data['data'].size()[1]
         edge_filter = [[-0.0751, -0.1238, -0.0751],[-0.1238, 0.7956, -0.1238][-0.0751,-0.1238,-0.0751]]
         edge_filter = torch.FloatTensor(edge_filter).expand(channels,channels,3,3)
-        edge = F.conv2d(data['data'],edge_filter,1,1)
+        edge = F.conv2d(data['data'],edge_filter,stride=1,padding=1)
         self.maxpool = nn.MaxPool2d(kernel_size=5, stride=4, padding=2)
         
 
