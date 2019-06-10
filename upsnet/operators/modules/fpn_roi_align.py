@@ -38,7 +38,6 @@ class FPNRoIAlign(Module):
         feat_id = np.clip(np.floor(2 + np.log2(np.sqrt(w * h) / 224 + 1e-6)), 0, 3)
         feat_no = []
         rois_fpn = []
-
         for i in range(4):
             feat_idx = np.where(feat_id == i)[0]
             if len(feat_idx) == 0:
@@ -47,16 +46,17 @@ class FPNRoIAlign(Module):
             else:
                 rois_fpn.append(rois[feat_idx])
                 feat_no.append(feat_idx)
-
-        rois_index = torch.tensor(np.argsort(np.hstack(feat_no))[-rois.shape[0]:], dtype=torch.int64, requires_grad=False).to(context)
-
+        rois_fpn.append(rois[-256:])
+        feat_no.append(range(len(rois)-256,len(rois)))
+        rois_index = torch.tensor(np.argsort(np.hstack(feat_no))[-(256+rois.shape[0]):], dtype=torch.int64, requires_grad=False).to(context)
+        #rois_index = torch.tensor(np.argsort(np.hstack(feat_no))[-rois.shape[0]:], dtype=torch.int64, requires_grad=False).to(context)
 
         pool_feat = []
+
         for i in range(len(self.spatial_scale)):
             rois_fpn[i] = torch.tensor(rois_fpn[i], dtype=torch.float32, requires_grad=False).to(context)
             pool_feat.append(
                 self.roi_pooling(self.pooled_height, self.pooled_width, self.spatial_scale[i])(feat[i], rois_fpn[i]))
-
         pool_feat = torch.cat(pool_feat, dim=0)
         pool_feat = torch.index_select(pool_feat, 0, rois_index)
         return pool_feat

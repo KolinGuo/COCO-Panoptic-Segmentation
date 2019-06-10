@@ -15,6 +15,7 @@
 
 from __future__ import print_function, division
 import os
+os.environ['CUDA_LAUNCH_BLOCKING']="1"
 import sys
 import logging
 import pprint

@@ -90,12 +90,19 @@ class resnet_upsnet(resnet_rcnn):
         res2, res3, res4, res5 = self.resnet_backbone(data['data'])
 
         #提取边界
-        channels = data['data'].size()[1]
-        edge_filter = [[-0.0751, -0.1238, -0.0751],[-0.1238, 0.7956, -0.1238][-0.0751,-0.1238,-0.0751]]
-        edge_filter = torch.FloatTensor(edge_filter).expand(channels,channels,3,3)
-        edge = F.conv2d(data['data'],edge_filter,1,1)
-        self.maxpool = nn.MaxPool2d(kernel_size=5, stride=4, padding=2)
+
+        edge_filter = [[-0.0751, -0.1238, -0.0751],[-0.1238, 0.7956, -0.1238],[-0.0751,-0.1238,-0.0751]]
+        edge_filter = torch.FloatTensor(edge_filter).expand(1,1,3,3)
         
+        if torch.cuda.is_available():
+            edge_filter = edge_filter.cuda()
+        edge_input=torch.mean(data['data'],1,keepdim=True)
+        edge = F.conv2d(edge_input,edge_filter,stride=1,padding=1)
+        self.maxpool = nn.MaxPool2d(kernel_size=5, stride=4, padding=2)
+        edge = self.maxpool(edge)
+        e_edge=edge.repeat(1,256,1,1)
+        
+
 
         fpn_p2, fpn_p3, fpn_p4, fpn_p5, fpn_p6 = self.fpn(res2, res3, res4, res5)
 
@@ -143,12 +150,16 @@ class resnet_upsnet(resnet_rcnn):
                 fcn_roi_loss = fcn_roi_loss.mean()
 
             # Instance head loss
-            rcnn_output = self.rcnn([fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge], rois)
+            
+            rcnn_output = self.rcnn([fpn_p2, fpn_p3, fpn_p4, fpn_p5, e_edge], rois)
             cls_score, bbox_pred = rcnn_output['cls_score'], rcnn_output['bbox_pred']
-            mask_score = self.mask_branch([fpn_p2, fpn_p3, fpn_p4, fpn_p5, edge], mask_rois)
+                      
+            mask_score = self.mask_branch([fpn_p2, fpn_p3, fpn_p4, fpn_p5, e_edge], mask_rois)
             cls_loss, bbox_loss, mask_loss, rcnn_acc = \
                 self.mask_rcnn_loss(cls_score, bbox_pred, mask_score,
                                     cls_label, bbox_target, bbox_inside_weight, bbox_outside_weight, mask_target)
+            print('device is', rois.device)
+
 
             # Panoptic head
 
